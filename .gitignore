@@ -1,0 +1,34 @@
+# Build artifacts
+.build/
+OdinMac.app/
+releases/
+*.zip
+*.o
+*.d
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Swift Package Manager
+.swiftpm/
+.netrc
+
+# Editor
+.vscode/
+*.swp
+*.swo

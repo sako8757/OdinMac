@@ -1,0 +1,59 @@
+diff --git a/heimdall/source/FlashAction.cpp b/heimdall/source/FlashAction.cpp
+index 5cc85fc..e638661 100644
+--- a/heimdall/source/FlashAction.cpp
++++ b/heimdall/source/FlashAction.cpp
+@@ -42,7 +42,7 @@ const char *FlashAction::usage = "Action: flash\n\
+ Arguments:\n\
+     [--<partition name> <filename> ...]\n\
+     [--<partition identifier> <filename> ...]\n\
+-    [--pit <filename>] [--verbose] [--no-reboot] [--resume] [--stdout-errors]\n\
++    [--pit <filename>] [--use-local-pit] [--verbose] [--no-reboot] [--resume] [--stdout-errors]\n\
+     [--usb-log-level <none/error/warning/debug>]\n\
+   or:\n\
+     --repartition --pit <filename> [--<partition name> <filename> ...]\n\
+@@ -308,7 +308,7 @@ static bool flashPartitions(BridgeManager *bridgeManager, const vector<Partition
+ 	return (true);
+ }
+ 
+-static PitData *getPitData(BridgeManager *bridgeManager, FILE *pitFile, bool repartition)
++static PitData *getPitData(BridgeManager *bridgeManager, FILE *pitFile, bool repartition, bool useLocalPit)
+ {
+ 	PitData *pitData;
+ 	PitData *localPitData = nullptr;
+@@ -346,7 +346,7 @@ static PitData *getPitData(BridgeManager *bridgeManager, FILE *pitFile, bool rep
+ 		}
+ 	}
+ 
+-	if (repartition)
++	if (repartition || useLocalPit)
+ 	{
+ 		// Use the local PIT file data.
+ 		pitData = localPitData;
+@@ -424,6 +424,7 @@ int FlashAction::Execute(int argc, char **argv)
+ 	map<string, string> shortArgumentAliases;
+ 
+ 	argumentTypes["repartition"] = kArgumentTypeFlag;
++	argumentTypes["use-local-pit"] = kArgumentTypeFlag;
+ 
+ 	argumentTypes["no-reboot"] = kArgumentTypeFlag;
+ 	argumentTypes["resume"] = kArgumentTypeFlag;
+@@ -502,8 +503,9 @@ int FlashAction::Execute(int argc, char **argv)
+ 	const StringArgument *pitArgument = static_cast<const StringArgument *>(arguments.GetArgument("pit"));
+ 
+ 	bool repartition = arguments.GetArgument("repartition") != nullptr;
++	bool useLocalPit = arguments.GetArgument("use-local-pit") != nullptr;
+ 
+-	if (repartition && !pitArgument)
++	if ((repartition || useLocalPit) && !pitArgument)
+ 	{
+ 		Interface::Print("If you wish to repartition then a PIT file must be specified.\n\n");
+ 		Interface::Print(FlashAction::usage);
+@@ -557,7 +559,7 @@ int FlashAction::Execute(int argc, char **argv)
+ 
+ 	if (success)
+ 	{
+-		PitData *pitData = getPitData(bridgeManager, pitFile, repartition);
++		PitData *pitData = getPitData(bridgeManager, pitFile, repartition, useLocalPit);
+ 	
+ 		if (pitData)
+ 			success = flashPartitions(bridgeManager, partitionFiles, pitData, repartition);

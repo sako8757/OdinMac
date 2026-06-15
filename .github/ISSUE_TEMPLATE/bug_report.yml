@@ -1,0 +1,61 @@
+name: Bug report
+description: Report an OdinMac application or flashing issue
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not upload proprietary firmware, device serial numbers, or personal data.
+        Flashing is risky. Verify that your firmware matches the exact device model.
+  - type: input
+    id: odinmac-version
+    attributes:
+      label: OdinMac version
+      placeholder: v1.1.1
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version and Mac model
+      placeholder: macOS 15.x, MacBook Pro M2
+    validations:
+      required: true
+  - type: input
+    id: device-model
+    attributes:
+      label: Samsung device model
+      placeholder: Exact model number, for example SM-S918B
+    validations:
+      required: true
+  - type: dropdown
+    id: detection
+    attributes:
+      label: Was Download Mode detected?
+      options:
+        - "Yes"
+        - "No"
+        - "Not applicable"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Redacted OdinMac log
+      description: Remove serial numbers, personal paths, and private information.
+      render: shell
