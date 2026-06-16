@@ -9,6 +9,16 @@ struct SetupTool {
     let isRequired: Bool
     let brewPackage: String?
     var isAvailable: Bool
+    var isHomebrew: Bool = false
+}
+
+struct SetupPermission {
+    let id: String
+    let icon: String
+    let name: String
+    let description: String
+    var isAvailable: Bool
+    var fixLabel: String? = nil
 }
 
 struct SetupView: View {
@@ -17,6 +27,7 @@ struct SetupView: View {
     var onDismiss: (() -> Void)? = nil
 
     @State private var tools: [SetupTool] = []
+    @State private var permissions: [SetupPermission] = []
     @State private var installing: String? = nil
     @State private var installLog = ""
     @State private var brewPath: String? = nil
@@ -31,14 +42,18 @@ struct SetupView: View {
             Divider().opacity(0.15)
             ScrollView {
                 VStack(spacing: 10) {
+                    sectionLabel("Tools")
                     ForEach(tools.indices, id: \.self) { i in
                         toolRow(index: i)
                     }
                     if !installLog.isEmpty {
                         logView
                     }
-                    if brewPath == nil {
-                        brewMissingNote
+
+                    sectionLabel("Permissions")
+                        .padding(.top, 6)
+                    ForEach(permissions.indices, id: \.self) { i in
+                        permissionRow(index: i)
                     }
                 }
                 .padding(20)
@@ -46,14 +61,17 @@ struct SetupView: View {
             Divider().opacity(0.15)
             footer
         }
-        .frame(width: 540, height: 460)
+        .frame(width: 540, height: 560)
         .background(Color(red: 0.06, green: 0.07, blue: 0.11))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
-        .onAppear(perform: checkTools)
+        .onAppear {
+            checkTools()
+            checkPermissions()
+        }
     }
 
     // MARK: - Header
@@ -68,7 +86,7 @@ struct SetupView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
             }
-            Text("OdinMac checks for required tools on launch.\nInstall any missing items below with one click via Homebrew.")
+            Text("OdinMac checks for required tools and permissions on launch.\nFix any issues below with one click.")
                 .font(.system(size: 12))
                 .foregroundColor(.gray.opacity(0.6))
                 .multilineTextAlignment(.center)
@@ -76,6 +94,18 @@ struct SetupView: View {
         .padding(.horizontal, 24).padding(.vertical, 18)
         .frame(maxWidth: .infinity)
         .background(Color(red: 0.06, green: 0.07, blue: 0.11))
+    }
+
+    // MARK: - Section label
+
+    private func sectionLabel(_ text: String) -> some View {
+        HStack(spacing: 0) {
+            Text(text.uppercased())
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(.gray.opacity(0.45))
+            Spacer()
+        }
+        .padding(.horizontal, 2)
     }
 
     // MARK: - Tool row
@@ -124,18 +154,104 @@ struct SetupView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.green.opacity(0.8))
                     .labelStyle(.titleAndIcon)
+            } else if tool.isHomebrew {
+                installButton(isBusy: installing == tool.id) {
+                    installHomebrew(toolIndex: i)
+                }
             } else if let pkg = tool.brewPackage, brewPath != nil {
-                Button {
+                installButton(isBusy: installing == tool.id) {
                     install(package: pkg, toolIndex: i)
+                }
+            } else if tool.brewPackage != nil {
+                Text("Needs Homebrew")
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange.opacity(0.7))
+            } else {
+                Text("Not found")
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange.opacity(0.7))
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(red: 0.10, green: 0.11, blue: 0.17))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+    }
+
+    private func installButton(isBusy: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if isBusy {
+                    ProgressView().scaleEffect(0.55).frame(width: 12, height: 12)
+                } else {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12))
+                }
+                Text(isBusy ? "Installing…" : "Install")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(Color(red: 0.2, green: 0.6, blue: 1.0))
+            .padding(.horizontal, 12).padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.1))
+                    .overlay(RoundedRectangle(cornerRadius: 7)
+                        .stroke(Color(red: 0.2, green: 0.6, blue: 1.0).opacity(0.4), lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(installing != nil)
+    }
+
+    // MARK: - Permission row
+
+    private func permissionRow(index i: Int) -> some View {
+        let perm = permissions[i]
+        return HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(perm.isAvailable
+                          ? Color.green.opacity(0.18)
+                          : Color.orange.opacity(0.14))
+                    .frame(width: 38, height: 38)
+                Image(systemName: perm.isAvailable ? "checkmark" : perm.icon)
+                    .font(.system(size: 14, weight: perm.isAvailable ? .bold : .regular))
+                    .foregroundColor(perm.isAvailable ? .green : .orange)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(perm.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(perm.description)
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray.opacity(0.6))
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if perm.isAvailable {
+                Label("Granted", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.green.opacity(0.8))
+                    .labelStyle(.titleAndIcon)
+            } else if let fixLabel = perm.fixLabel {
+                Button {
+                    fixPermission(id: perm.id)
                 } label: {
                     HStack(spacing: 5) {
-                        if installing == pkg {
+                        if installing == perm.id {
                             ProgressView().scaleEffect(0.55).frame(width: 12, height: 12)
                         } else {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 12))
+                            Image(systemName: "wrench.fill").font(.system(size: 11))
                         }
-                        Text(installing == pkg ? "Installing…" : "Install")
+                        Text(installing == perm.id ? "Fixing…" : fixLabel)
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundColor(Color(red: 0.2, green: 0.6, blue: 1.0))
@@ -149,8 +265,8 @@ struct SetupView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(installing != nil)
-            } else if !tool.isAvailable {
-                Text("Not found")
+            } else {
+                Text("Limited")
                     .font(.system(size: 11))
                     .foregroundColor(.orange.opacity(0.7))
             }
@@ -181,31 +297,6 @@ struct SetupView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8)
             .stroke(Color.white.opacity(0.07), lineWidth: 1))
-    }
-
-    // MARK: - Brew missing note
-
-    private var brewMissingNote: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "info.circle")
-                .font(.system(size: 12))
-                .foregroundColor(.orange.opacity(0.8))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Homebrew not found")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.orange)
-                Text("Install Homebrew to enable one-click tool installation: brew.sh")
-                    .font(.system(size: 11))
-                    .foregroundColor(.gray.opacity(0.6))
-            }
-            Spacer()
-            Link("brew.sh", destination: URL(string: "https://brew.sh")!)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color(red: 0.2, green: 0.6, blue: 1.0))
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 9).fill(Color.orange.opacity(0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.orange.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Footer
@@ -245,7 +336,7 @@ struct SetupView: View {
         .background(Color(red: 0.05, green: 0.06, blue: 0.09))
     }
 
-    // MARK: - Logic
+    // MARK: - Checks
 
     private func checkTools() {
         let fm = FileManager.default
@@ -268,6 +359,16 @@ struct SetupView: View {
                 isAvailable: heimdallAvailable
             ),
             SetupTool(
+                id: "homebrew",
+                icon: "shippingbox.fill",
+                name: "Homebrew",
+                description: "Package manager used to install lz4 and ADB below. Needs an admin password once.",
+                isRequired: false,
+                brewPackage: nil,
+                isAvailable: brewPath != nil,
+                isHomebrew: true
+            ),
+            SetupTool(
                 id: "lz4",
                 icon: "doc.zipper",
                 name: "lz4",
@@ -288,9 +389,94 @@ struct SetupView: View {
         ]
     }
 
+    private func checkPermissions() {
+        let appPath = Bundle.main.bundleURL.path
+
+        let quarantineProc = Process()
+        quarantineProc.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        quarantineProc.arguments = ["-p", "com.apple.quarantine", appPath]
+        quarantineProc.standardOutput = Pipe()
+        quarantineProc.standardError = Pipe()
+        var isQuarantined = false
+        if (try? quarantineProc.run()) != nil {
+            quarantineProc.waitUntilExit()
+            isQuarantined = quarantineProc.terminationStatus == 0
+        }
+
+        let idProc = Process()
+        idProc.executableURL = URL(fileURLWithPath: "/usr/bin/id")
+        idProc.arguments = ["-Gn"]
+        let idPipe = Pipe()
+        idProc.standardOutput = idPipe
+        idProc.standardError = Pipe()
+        var isAdmin = false
+        if (try? idProc.run()) != nil {
+            idProc.waitUntilExit()
+            let data = idPipe.fileHandleForReading.readDataToEndOfFile()
+            let groups = String(data: data, encoding: .utf8) ?? ""
+            isAdmin = groups.split(separator: " ").contains("admin")
+        }
+
+        permissions = [
+            SetupPermission(
+                id: "gatekeeper",
+                icon: "checkmark.shield.fill",
+                name: "App Security (Gatekeeper)",
+                description: "OdinMac isn't quarantined, so macOS won't re-block it on future launches.",
+                isAvailable: !isQuarantined,
+                fixLabel: isQuarantined ? "Remove Quarantine" : nil
+            ),
+            SetupPermission(
+                id: "admin",
+                icon: "person.badge.key.fill",
+                name: "Admin Account",
+                description: isAdmin
+                    ? "Your account can authorize installing Homebrew and other tools."
+                    : "Standard account. Installing Homebrew needs an administrator to enter their password.",
+                isAvailable: isAdmin
+            ),
+        ]
+    }
+
+    // MARK: - Fixes
+
+    private func fixPermission(id: String) {
+        guard id == "gatekeeper" else { return }
+        installing = id
+        let path = Bundle.main.bundleURL.path
+
+        Task {
+            let direct = Process()
+            direct.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            direct.arguments = ["-dr", "com.apple.quarantine", path]
+            direct.standardOutput = Pipe()
+            direct.standardError = Pipe()
+            try? direct.run()
+            direct.waitUntilExit()
+
+            if direct.terminationStatus != 0 {
+                let escapedPath = path.replacingOccurrences(of: "\"", with: "\\\"")
+                let script = "do shell script \"xattr -dr com.apple.quarantine \\\"\(escapedPath)\\\"\" with administrator privileges with prompt \"OdinMac needs to clear its quarantine flag.\""
+                let elevated = Process()
+                elevated.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                elevated.arguments = ["-e", script]
+                elevated.standardOutput = Pipe()
+                elevated.standardError = Pipe()
+                try? elevated.run()
+                elevated.waitUntilExit()
+            }
+
+            await MainActor.run {
+                checkPermissions()
+                installing = nil
+            }
+        }
+    }
+
     private func install(package: String, toolIndex: Int) {
         guard let brew = brewPath else { return }
-        installing = package
+        let toolID = tools[toolIndex].id
+        installing = toolID
         installLog = "$ brew install \(package)\n"
 
         Task {
@@ -331,6 +517,82 @@ struct SetupView: View {
                     installLog += isNow
                         ? "\n✓ \(package) installed successfully!"
                         : "\n✗ Installation may have failed (exit \(proc.terminationStatus))."
+                    installing = nil
+                }
+            } catch {
+                await MainActor.run {
+                    installLog += "Error: \(error.localizedDescription)"
+                    installing = nil
+                }
+            }
+        }
+    }
+
+    /// Homebrew's installer refuses to run as root and aborts if invoked from a
+    /// `with administrator privileges` AppleScript block (which runs as root). So we
+    /// only elevate the one step that genuinely needs it (creating /opt/homebrew and
+    /// handing it to the current user), then run the official installer unprivileged.
+    private func installHomebrew(toolIndex: Int) {
+        let toolID = tools[toolIndex].id
+        installing = toolID
+        installLog = "$ Preparing /opt/homebrew (enter your password when prompted)...\n"
+
+        Task {
+            let user = NSUserName()
+            let prepScript = "do shell script \"mkdir -p /opt/homebrew && chown -R \(user):admin /opt/homebrew\" with administrator privileges with prompt \"OdinMac needs to prepare /opt/homebrew before installing Homebrew.\""
+
+            let prep = Process()
+            prep.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            prep.arguments = ["-e", prepScript]
+            let prepPipe = Pipe()
+            prep.standardOutput = prepPipe
+            prep.standardError = prepPipe
+
+            do {
+                try prep.run()
+                prep.waitUntilExit()
+                guard prep.terminationStatus == 0 else {
+                    let data = prepPipe.fileHandleForReading.readDataToEndOfFile()
+                    let msg = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    await MainActor.run {
+                        installLog += "\n✗ Admin authorization was cancelled or failed.\(msg.map { " (\($0))" } ?? "")"
+                        installing = nil
+                    }
+                    return
+                }
+
+                await MainActor.run { installLog += "✓ /opt/homebrew ready.\n$ Installing Homebrew (this can take a few minutes)...\n" }
+
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/bin/bash")
+                proc.arguments = ["-c", "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""]
+                var env = ProcessInfo.processInfo.environment
+                env["NONINTERACTIVE"] = "1"
+                proc.environment = env
+                let pipe = Pipe()
+                proc.standardOutput = pipe
+                proc.standardError = pipe
+                try proc.run()
+
+                let handle = pipe.fileHandleForReading
+                while true {
+                    let data = handle.availableData
+                    if data.isEmpty { break }
+                    if let str = String(data: data, encoding: .utf8) {
+                        await MainActor.run { installLog += str }
+                    }
+                }
+                proc.waitUntilExit()
+
+                let fm = FileManager.default
+                let newBrewPath = ["/opt/homebrew/bin/brew"].first(where: { fm.isExecutableFile(atPath: $0) })
+
+                await MainActor.run {
+                    brewPath = newBrewPath
+                    tools[toolIndex].isAvailable = newBrewPath != nil
+                    installLog += newBrewPath != nil
+                        ? "\n✓ Homebrew installed successfully!"
+                        : "\n✗ Homebrew installation may have failed (exit \(proc.terminationStatus))."
                     installing = nil
                 }
             } catch {

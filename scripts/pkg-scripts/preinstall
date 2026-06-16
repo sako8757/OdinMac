@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# OdinMac installer - preinstall
+# Quits any running copy of OdinMac so the new version can be installed
+# cleanly. Never fails the install: every step is best-effort.
+
+loggedInUser=$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)
+
+if [ -n "$loggedInUser" ] && [ "$loggedInUser" != "root" ]; then
+  userID=$(/usr/bin/id -u "$loggedInUser" 2>/dev/null)
+  if [ -n "$userID" ]; then
+    /bin/launchctl asuser "$userID" /usr/bin/sudo -u "$loggedInUser" \
+      /usr/bin/osascript -e 'if application "OdinMac" is running then tell application "OdinMac" to quit' \
+      >/dev/null 2>&1
+  fi
+fi
+
+sleep 1
+/usr/bin/pkill -x OdinMac >/dev/null 2>&1
+
+exit 0

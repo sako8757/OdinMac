@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# OdinMac installer - postinstall
+# Clears any quarantine flag, defensively re-signs the app if its signature
+# was disturbed, then opens OdinMac in the logged-in user's session.
+# Never fails the install: every step is best-effort.
+
+APP_PATH="/Applications/OdinMac.app"
+
+/usr/bin/xattr -dr com.apple.quarantine "$APP_PATH" >/dev/null 2>&1
+
+if ! /usr/bin/codesign --verify --deep --strict "$APP_PATH" >/dev/null 2>&1; then
+  /usr/bin/codesign --force --deep --sign - "$APP_PATH" >/dev/null 2>&1
+fi
+
+loggedInUser=$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)
+
+if [ -n "$loggedInUser" ] && [ "$loggedInUser" != "root" ]; then
+  userID=$(/usr/bin/id -u "$loggedInUser" 2>/dev/null)
+  if [ -n "$userID" ]; then
+    /bin/launchctl asuser "$userID" /usr/bin/sudo -u "$loggedInUser" \
+      /usr/bin/open -a "$APP_PATH" \
+      >/dev/null 2>&1
+  fi
+fi
+
+exit 0

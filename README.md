@@ -80,6 +80,23 @@ brew install android-platform-tools
 
 ## Download And Install
 
+### Option A: Installer package (recommended)
+
+1. Download the latest `.pkg` from
+   [GitHub Releases](https://github.com/h4rithd/OdinMac/releases/latest).
+2. Double-click `OdinMac-v*-macOS-arm64.pkg`. macOS will warn that it is from
+   an unidentified developer because the installer is ad-hoc signed and not
+   notarized. Right-click (Control-click) the `.pkg` and choose **Open**, or
+   approve it from **System Settings > Privacy & Security**. This one-time
+   approval is for the installer itself, not the app.
+3. Follow the installer. It installs OdinMac to `/Applications`, clears the
+   quarantine flag, and opens OdinMac automatically when finished.
+4. On first launch, OdinMac checks for optional tools (Homebrew, `lz4`, ADB)
+   and for anything else that needs attention, with one-click buttons to
+   install or fix them. No Terminal commands are required.
+
+### Option B: ZIP (manual)
+
 1. Download the latest ZIP from
    [GitHub Releases](https://github.com/h4rithd/OdinMac/releases/latest).
 2. Unzip `OdinMac-v*-macOS-arm64.zip`.
@@ -179,6 +196,11 @@ No flashing tool can protect a device from firmware made for the wrong model.
 
 ### macOS blocks OdinMac
 
+Open OdinMac and use the **Fix** button next to **App Security (Gatekeeper)**
+in the Setup & Requirements dialog (reopen it anytime from the wrench icon in
+the toolbar). If OdinMac will not open at all, clear the quarantine flag
+manually:
+
 ```bash
 xattr -dr com.apple.quarantine /Applications/OdinMac.app
 ```
@@ -225,10 +247,16 @@ open OdinMac.app
 `build.sh` compiles the Swift sources, bundles the vendored Heimdall engine and
 app icon, assembles `OdinMac.app`, and ad-hoc signs the result.
 
-Create a release ZIP:
+Create a release ZIP and `.pkg` installer:
 
 ```bash
 ./scripts/release.sh
+```
+
+Build only the `.pkg` installer:
+
+```bash
+./scripts/build-pkg.sh
 ```
 
 Rebuild the bundled Heimdall engine from its pinned source commit:
@@ -253,7 +281,9 @@ OdinMac/
 ├── Info.plist
 └── OdinMac.entitlements
 patches/                        Patch used by the Heimdall rebuild
-scripts/                        Heimdall rebuild and release packaging scripts
+scripts/                        Heimdall rebuild, pkg, and release packaging scripts
+  ├── pkg-scripts/               preinstall/postinstall used by the .pkg installer
+  └── pkg-resources/              welcome/license/conclusion panes and distribution.xml
 vendor/heimdall/                Bundled Heimdall binary and license
 build.sh                        Main application build script
 ```

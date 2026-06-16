@@ -447,6 +447,11 @@ struct ContentView: View {
                 Text("Samsung Firmware Flasher for macOS")
                     .font(.system(size: 10))
                     .foregroundColor(.gray.opacity(0.35))
+                Text("·")
+                    .foregroundColor(.gray.opacity(0.25))
+                Text("by Harith Dilshan | h4rithd")
+                    .font(.system(size: 10))
+                    .foregroundColor(.gray.opacity(0.35))
             }
 
             Spacer()
