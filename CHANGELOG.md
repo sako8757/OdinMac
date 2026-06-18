@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.1.3
+
+### Fixed
+
+- **Device detection on macOS 15+ (Sequoia / Tahoe)**: replaced the
+  `heimdall detect` subprocess-only poll with a two-stage approach.
+  Stage 1 uses IOKit directly from Swift (`IOServiceGetMatchingServices`
+  on `IOUSBHostDevice`/`IOUSBDevice`, matching Samsung VID 0x04E8) to
+  check whether any Samsung device is visible on the USB bus — no
+  interface claim needed, no subprocess, works even when the accessory
+  hasn't been approved yet. Stage 2 only runs `heimdall detect` when
+  stage 1 finds something, confirming the device is in Download Mode.
+- Added a `usbBusPresent` signal so the log shows
+  "Samsung device detected on USB bus — waiting for Download Mode
+  response" when the device is on USB but not yet responding to the
+  Odin handshake.
+- **Setup view now shows USB Accessories row** on macOS 15+, explaining
+  the "Allow Accessory to Connect?" approval dialog and providing an
+  "Open Settings" button that navigates directly to Privacy & Security.
+- Added `-framework IOKit` to `build.sh` linker flags.
+
 ## v1.1.2
 
 ### Fixed

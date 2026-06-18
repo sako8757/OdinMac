@@ -417,7 +417,13 @@ struct SetupView: View {
             isAdmin = groups.split(separator: " ").contains("admin")
         }
 
-        permissions = [
+        // On macOS 15 (Sequoia) and later, USB accessories must be explicitly approved.
+        // When macOS shows "Allow Accessory to Connect?" — click Allow.
+        // If the prompt was missed or dismissed, the device won't appear on the USB bus at all.
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        let needsUSBApproval = os.majorVersion >= 15
+
+        var perms: [SetupPermission] = [
             SetupPermission(
                 id: "gatekeeper",
                 icon: "checkmark.shield.fill",
@@ -436,11 +442,32 @@ struct SetupView: View {
                 isAvailable: isAdmin
             ),
         ]
+
+        if needsUSBApproval {
+            perms.append(SetupPermission(
+                id: "usb_accessory",
+                icon: "cable.connector",
+                name: "USB Accessories",
+                description: "macOS 15+ requires you to click \u{201C}Allow\u{201D} when connecting the phone. If you missed the prompt, open Privacy & Security \u{2192} USB Accessories.",
+                isAvailable: false,
+                fixLabel: "Open Settings"
+            ))
+        }
+
+        permissions = perms
     }
 
     // MARK: - Fixes
 
     private func fixPermission(id: String) {
+        if id == "usb_accessory" {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+                NSWorkspace.shared.open(url)
+            } else if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
+                NSWorkspace.shared.open(url)
+            }
+            return
+        }
         guard id == "gatekeeper" else { return }
         installing = id
         let path = Bundle.main.bundleURL.path

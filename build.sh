@@ -15,7 +15,7 @@ BUILD_DIR=".build/odinmac"
 APP_BUNDLE="OdinMac.app"
 CONTENTS="$APP_BUNDLE/Contents"
 HEIMDALL_BIN="vendor/heimdall/heimdall"
-FW_FLAGS="-framework AppKit -framework SwiftUI -framework Foundation -framework UniformTypeIdentifiers -framework Combine"
+FW_FLAGS="-framework AppKit -framework SwiftUI -framework Foundation -framework UniformTypeIdentifiers -framework Combine -framework IOKit"
 
 echo "==> Cleaning previous build..."
 rm -rf "$BUILD_DIR" "$APP_BUNDLE"

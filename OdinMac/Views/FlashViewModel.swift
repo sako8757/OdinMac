@@ -81,6 +81,19 @@ final class FlashViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$deviceInfo)
 
+        // When a Samsung device is visible on USB but not yet in Download Mode,
+        // log a hint so the user knows the cable/USB layer is working.
+        usb.$usbBusPresent
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] present in
+                guard let self else { return }
+                if present, !self.isDeviceConnected {
+                    self.appendLog("Samsung device detected on USB bus — waiting for Download Mode response.", level: .info)
+                }
+            }
+            .store(in: &cancellables)
+
         // Poll ADB app-wide so device details (model, bootloader status, …)
         // are available on every tab, not just the Root tab.
         adb.startPolling()
